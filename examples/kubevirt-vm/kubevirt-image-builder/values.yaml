@@ -1,0 +1,100 @@
+kubevirt-vm:
+  servicePorts:
+    - 22
+    - 3389
+    - 5900
+
+  source:
+    type: snapshot
+    name: ubuntu-24.04
+    namespace: base-images
+    create-rbac: true
+
+  readinessProbe:
+    command:
+      - "cloud-init"
+      - "status"
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 3
+
+  osPreference: ubuntu
+  osStorage: 20Gi
+  runStrategy: RerunOnFailure
+  scripts:
+    cloudInit:
+      userData: |
+        #cloud-config
+        password: ubuntu
+        ssh_pwauth: True
+        chpasswd: { expire: False }
+
+        apt:
+          sources:
+            hashicorp:
+              source: "deb [arch=amd64] https://apt.releases.hashicorp.com noble main"
+              keyid: '798AEC654E5C15428C8E42EEAA16FCBCA621E701' #gitleaks:allow
+            vscode:
+              source: "deb [arch=amd64] https://packages.microsoft.com/repos/code stable main"
+              keyid: 'EB3E94ADBE1229CF'
+
+        package_update: true
+        package_upgrade: true
+        packages:
+          - ubuntu-desktop-minimal
+          - openssh-server
+          - xrdp
+          - tigervnc-standalone-server
+          - tigervnc-viewer
+          - ca-certificates
+          - apt-transport-https
+          - lsb-release
+          - gnupg
+          - curl
+          - git
+          - python3-pip
+          - ansible
+          - packer
+          - awscli
+          - vim
+          - code
+          - bridge-utils
+          - libvirt-daemon-system
+          - libvirt-clients
+          - qemu-system-x86
+          - qemu-kvm
+          - qemu-guest-agent
+
+        write_files:
+          - content: 'KERNEL=="kvm", GROUP="kvm", MODE="0660"'
+            owner: root:root
+            path: /etc/udev/rules.d/99-kvm.rules
+            permissions: '0644'
+
+        runcmd:
+          - [ adduser, ubuntu, kvm]
+          - [ adduser, ubuntu, libvirt]
+          - [ adduser, xrdp, ssl-cert ]
+          - [ systemctl, enable, xrdp ]
+          - [ ufw, allow, '5900:5910' ]
+          - [ ufw, allow, '3389' ]
+          - [ "systemctl", "enable", "--now", "qemu-guest-agent" ]
+
+        power_state:
+          mode: reboot
+          message: Rebooting after package installation.
+
+  nodeSelector:
+    kubevirt.io/schedulable: "true"
+  tolerations:
+    - key: "pelo.tech/kvm"
+      value: "true"
+  networks:
+    podNetwork:
+      enabled: true
+
+  requests:
+    cpu: 4
+    memory: 16Gi

@@ -1,0 +1,37 @@
+{{- range $image := .Values.images }}
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: {{ $image.name | lower }}
+  namespace: {{ $.Release.Namespace }}
+  annotations:
+    cdi.kubevirt.io/storage.bind.immediate.requested: "true"
+spec:
+  source:
+    http:
+      url: {{ $image.url }}
+      {{- if $image.secretRef }}
+      secretRef: {{ $image.secretRef | quote }}
+      {{- end }}
+  pvc:
+    resources:
+      requests:
+        storage: {{ $image.storage }}
+    {{- if $image.storageClass }}
+    storageClassName: {{ $image.storageClass }}
+    {{- end }}
+    accessModes:
+      - ReadWriteOnce
+{{ if $image.createSnapshot }}
+---
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: {{ $image.name | lower }}
+  namespace: {{ $.Release.Namespace }}
+spec:
+  source:
+    persistentVolumeClaimName: {{ $image.name | lower }}
+{{- end }}
+{{- end }}

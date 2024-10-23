@@ -1,0 +1,165 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: {{ include "lab-virtualmachine.fullname" . }}
+  labels:
+    {{- include "lab-virtualmachine.labels" . | nindent 4 }}
+spec:
+  runStrategy: {{ .Values.runStrategy }}
+  {{- with .Values.osPreference }}
+  preference:
+    kind: VirtualMachineClusterPreference
+    name: {{ . | quote }}
+  {{- end }}
+  template:
+    metadata:
+      {{- if or .Values.podAnnotations .Values.hookSidecarScript }}
+      annotations:
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.hookSidecarScript }}
+        "hooks.kubevirt.io/hookSidecars": {{ include "lab-virtualmachine.hook-sidecar-annotation" . | quote }}
+      {{- end }}
+      {{- end }}
+      labels:
+        {{- include "lab-virtualmachine.labels" . | nindent 8 }}
+	    {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+      {{- range $key, $value := .Values.nodeSelector }}
+        {{ $key | quote }}: {{ $value | quote }}
+      {{- end }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+      {{- range .Values.tolerations }}
+        - key: {{ .key | quote }}
+          value: {{ .value | quote }}
+          operator: {{ .operator | quote }}
+      {{- end }}
+      {{- end }}
+      terminationGracePeriodSeconds: 0
+      volumes:
+        - name: os
+          dataVolume:
+            name: {{ include "lab-virtualmachine.fullname" . }}
+        {{- with .Values.scripts }}
+        - name: cloudinitdisk
+          {{- if .sysprepSecret }}
+          sysprep:
+            secret:
+              name: {{ .sysprepSecret }}
+          {{- else if .cloudInit }}
+          cloudInitNoCloud:
+            {{- if .cloudInit.userData }}
+            secretRef:
+              name: {{ include "lab-virtualmachine.cloud-init-secret" $ }}
+            {{- else }}
+            userData: "#cloud-config"
+            {{- end }}
+            {{- if .cloudInit.networkData }}
+            networkDataSecretRef: {{ include "lab-virtualmachine.cloud-init-secret" $ }}
+            {{- end }}
+          {{- end }}
+        {{- end }}
+      {{- with .Values.readinessProbe }}
+      readinessProbe:
+        exec:
+          command: {{ toYaml .command | nindent 12 }}
+        initialDelaySeconds: {{ default 0 .initialDelaySeconds }}
+        periodSeconds: {{ default 10 .periodSeconds }}
+        timeoutSeconds: {{ default 1 .timeoutSeconds }}
+        successThreshold: {{ default 1 .successThreshold }}
+        failureThreshold: {{ default 3 .failureThreshold }}
+      {{- end }}
+      domain:
+        resources:
+          requests:
+            cpu: {{ .Values.requests.cpu | quote }}
+            memory: {{ .Values.requests.memory | quote }}
+        devices:
+          disks:
+            - name: os
+              bootOrder: 1
+              disk:
+                bus: virtio
+            {{- if .Values.scripts }}
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+            {{- end }}
+          {{- with .Values.networks }}
+          interfaces:
+            {{- if eq .podNetwork.enabled true }}
+            - name: default
+              masquerade: { }
+              {{- if .podNetwork.macAddress }}
+              macAddress: {{ .podNetwork.macAddress | quote }}
+              {{- end }}
+            {{- end }}
+            {{- range $index, $network := .multusNetworks }}
+            - name: network-{{ $index }}
+              bridge: { }
+              {{- with $network.macAddress }}
+              macAddress: {{ . | quote }}
+              {{- end }}
+            {{- end }}
+          {{- end }}
+      {{- with .Values.networks }}
+      networks:
+        {{- if eq .podNetwork.enabled true }}
+        - name: default
+          pod: { }
+        {{- end }}
+        {{- range $index, $network := .multusNetworks }}
+        - name: network-{{ $index }}
+          multus:
+            networkName: {{ $network.name | quote }}
+            default:     {{ $network.default | default false }}
+            {{- with $network.ip }}
+            ips: [{{ . | quote }}]
+            {{- end }}
+        {{- end }}
+      {{- end }}
+  dataVolumeTemplates:
+    - metadata:
+        name: {{ include "lab-virtualmachine.fullname" . }}
+      spec:
+        {{- with .Values.source }}
+        source:
+          {{- if eq (.type) "pvc" }}
+          pvc:
+            name: {{ .name | quote }}
+            namespace: {{ .namespace | quote }}
+          {{- else if eq (.type) "snapshot" }}
+          snapshot:
+            name: {{ .name | quote }}
+            namespace: {{ .namespace | quote }}
+          {{- else if eq (.type) "http" }}
+          http:
+            url: {{ .name | quote }}
+          {{- else if eq (.type) "s3" }}
+          s3:
+            url: {{ .name | quote }}
+          {{- else if eq (.type) "registry" }}
+          registry:
+            url: {{ .name | quote }}
+            pullMethod: node
+          {{- end }}
+          {{- if .secretRef }}
+            secretRef: {{ .secretRef | quote }}
+          {{- end }}
+        {{- end }}
+        pvc:
+          {{- with .Values.osStorageClass }}
+          storageClassName: {{ . | quote }}
+          {{- end }}
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: {{ .Values.osStorage | quote }}

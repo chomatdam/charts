@@ -1,0 +1,65 @@
+podAnnotations: {}
+podLabels: {}
+
+serviceLabels: {}
+serviceAnnotations: {}
+
+runStrategy: Always
+
+#readinessProbe:
+#  command:
+#    - /bin/sh
+#    - -c
+#    - cloud-init status
+#  initialDelaySeconds: 0
+#  periodSeconds: 10
+#  timeoutSeconds: 1
+#  successThreshold: 1
+#  failureThreshold: 3
+
+#hookSidecarScript: |
+#  !/bin/bash
+#   This script is during libvirt domain definition.
+
+#scripts:
+#  sysprepSecret: "secretName"
+#  cloudInit:
+#    userDataSecret: "secretName"
+#    networkDataSecret: "secretName"
+
+# VM Configuration.
+osStorageClass: gp3
+osPreference: ubuntu
+osStorage: 10Gi
+
+#tolerations:
+#  - key: "pelo.tech/kvm"
+#    value: true
+#
+#nodeSelector:
+#  kubevirt.io/schedulable: "true"
+
+
+requests:
+  cpu: 2000m
+  memory: 4Gi
+
+# Source VM image from 'http' (e.g. S3) or 'registry'
+#source:
+#  type: s3
+#  url: "https://s3.us-east-1.amazonaws.com/bucket-name/disk-image-name"
+#  secretRef: "s3-credentials"
+#  create-rbac: true
+
+# Adds to VM a secondary network (Multus only).
+#networks:
+#  podNetwork:
+#    enabled: true
+#    macAddress: "02:02:02:02:02:02"
+#  multusNetworks:
+#  - name: multus-network
+#    default: true
+#    ip: 10.10.0.10
+
+#servicePorts:
+#  - 22

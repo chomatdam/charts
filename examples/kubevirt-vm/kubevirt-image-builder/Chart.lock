@@ -1,0 +1,6 @@
+dependencies:
+- name: kubevirt-vm
+  repository: file://../../../charts/kubevirt-vm
+  version: 0.1.0
+digest: sha256:4007f5bbc4b887aee7db22383dd74b217a5ee49c1eeeff6918618d077d42598e
+generated: "2024-10-27T18:10:00.174897+01:00"

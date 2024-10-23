@@ -1,0 +1,24 @@
+{{- if .Values.servicePorts }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lab-virtualmachine.fullname" $ }}
+  labels:
+    {{- include "lab-virtualmachine.labels" $ | nindent 4 }}
+    {{- with $.Values.serviceLabels }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+  {{- with $.Values.serviceAnnotations }}
+  annotations:
+      {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: "ClusterIP"
+  selector:
+    {{- include "lab-virtualmachine.selectorLabels" $ | nindent 4 }}
+  ports:
+{{- range $port := .Values.servicePorts }}
+    - name: port-{{ $port }}
+      port: {{ $port }}
+{{- end }}
+{{- end }}

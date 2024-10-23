@@ -1,0 +1,8 @@
+#images:
+#  - name: data-volume-name
+#    type: s3
+#    url: https://s3.us-east-1.amazonaws.com/path/to/disk.img
+#    secretRef: my-s3-credentials-secret-name
+#    storage: 10Gi
+#    storageClass: default
+#    createSnapshot: true

@@ -1,0 +1,11 @@
+{{- if .Values.hookSidecarScript }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lab-virtualmachine.hook-sidecar-cm" . }}
+  labels:
+    {{- include "lab-virtualmachine.labels" . | nindent 4 }}
+data:
+  {{- (include "lab-virtualmachine.hook-sidecar-cm-key" .) | nindent 2 }}: |-
+{{- .Values.hookSidecarScript | nindent 4 }}
+{{- end }}
